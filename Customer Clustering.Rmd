@@ -1,0 +1,140 @@
+---
+title: "WF Case Competition"
+author: "Rahul Narula"
+date: "March 6, 2019"
+output: pdf_document
+---
+
+```{r}
+### Summary ###
+
+# Clustered data containing information on customer zone to see what the major differentiations between customer zones were.
+# The results confirm the intuition that the major customer segments are related to location, perhaps prompting according
+# distribution strategies. Three clusters are optimal and these correspond to customers in the Eastern US, Central US, and Western US.
+```
+
+
+```{r setup, include=FALSE}
+### R Markdown Initiate ###
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+### Load Libraries ###
+
+library(readxl)
+library(corrplot)
+library(d3heatmap)
+library(NbClust)
+library(cluster)
+library(mclust)
+```
+
+
+```{r}
+### Data Read & Clean ###
+
+
+# Set Directory
+
+setwd("C:/Users/31221/Desktop/wake forest")
+
+# Load Data
+demand <- read_xlsx("2019 case.xlsx", sheet = 1)
+inbound.cost <- read_xlsx("2019 case.xlsx", sheet = 3, skip = 4, n_max = 15)
+handling.charges <- read_xlsx("2019 case.xlsx", sheet = 4)
+outbound.cost <- read_xlsx("2019 case.xlsx", sheet = 5, skip = 1)
+transit.time <- read_xlsx("2019 case.xlsx", sheet = 6, skip = 1)
+air.cost <- read_xlsx("2019 case.xlsx", sheet = 7, skip = 1)
+
+# Fix Variable Names
+colnames(demand)[1]           <- "Customer"
+colnames(air.cost)[1]         <- "Customer"
+colnames(outbound.cost)[1]    <- "Customer"
+colnames(transit.time)[1]     <- "Customer"
+colnames(inbound.cost)[1]     <- "DC"
+colnames(handling.charges)[1] <- "DC"
+
+# Join Data
+customer <- merge(demand, outbound.cost, by = "Customer")
+customer <- merge(customer, transit.time, by = "Customer")
+customer <- merge(customer, air.cost, by = "Customer")
+
+# Create Standardized Dataset
+customer.std <- customer %>% 
+                mutate_at(c(seq(1,ncol(customer))), 
+                funs(c(scale(.))))
+customer.std
+```
+
+
+```{r}
+### Correlation Matrix ###
+
+??corrplot
+customer.mat <- as.matrix(customer)
+corrplot::corrplot(cor(customer.mat))
+```
+
+
+```{r}
+### Clustering ###
+
+
+# Find Optimal Number of Clusters 
+## (3 for unstandardized data, 2/3 tie for standardized. Went with 3)
+nbclust <- NbClust(customer.std, method="kmeans", index="all")
+
+# K-Means Clustering
+set.seed(98)
+best.k <- 3              
+km <- kmeans(customer.std, centers=best.k)
+
+# Plot Clusters
+clusplot(customer.std, km$cluster, shade=T, color=T, main="K Means Clustering")
+```
+
+
+```{r}
+### Create Dataset for Each Cluster ###
+
+
+# Initialize List
+km.clusters <- list()  
+
+# Add customers to cluster dataframes and print 10 customers in each cluster
+for(i in 1:best.k){
+    df <- as.data.frame(customer.std[which(km$cluster %in% c(i)),c(1:47)])
+    km.clusters[[i]] <- df
+    set.seed(212)
+}
+
+# Create cluster dataframes
+c1.km <- as.data.frame(km.clusters[1])
+c1.km$Cluster <- 1
+c2.km <- as.data.frame(km.clusters[2])
+c2.km$Cluster <- 2
+c3.km <- as.data.frame(km.clusters[3])
+c3.km$Cluster <- 3
+
+c1.means <- as.data.frame(colMeans(c1.km))
+c2.means <- as.data.frame(colMeans(c2.km))
+c3.means <- as.data.frame(colMeans(c3.km))
+
+# Cluster Means (To Paste to Excel File)
+write.csv(c1.means)
+write.csv(c2.means)
+write.csv(c3.means)
+```
+
+
+```{r}
+### Visualize Clusters via Heatmaps ###
+
+
+d3heatmap(as.matrix(c1.km))
+d3heatmap(as.matrix(c2.km))
+d3heatmap(as.matrix(c3.km))
+```

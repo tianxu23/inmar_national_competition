@@ -1,0 +1,67 @@
+---
+title: "Connection Map"
+author: "Rahul Narula"
+date: "March 8, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+### Summary ###
+
+# Requires Wen's code to run first (uses results_table).
+# Creates a connection map of which DC's each plant ships to. Thought it would look good in the PowerPoint.
+```
+
+
+```{r}
+### Load Libraries ###
+
+
+library(maps)
+library(dplyr)
+library(geosphere)
+```
+
+
+```{r}
+### Create Mapping Datasets ###
+
+
+# Add DC Latitudes & Longitudes
+lats <- c(33.748997, 32.776474, 35.227085, 35.045631, 41.878113, 39.103119, 32.776665, 39.739235, 
+          34.85075,  39.768402, 35.960636, 38.252666, 35.149532, 36.162663, 40.440624)
+lons <- c(-84.387985, -79.931053, -80.843124, -85.309677, -87.629799, -84.512016, -96.796989, -104.99025,
+          -82.398956, -86.158066, -83.920738, -85.758453, -90.048981, -86.781601, -79.995888)
+
+results_table <- cbind(results_table, lats)
+results_table <- cbind(results_table, lons)
+
+# Mapping Datasets
+camden.cities  <- results_table[which(results_table$`From Camden` != 0), ]
+modesto.cities <- results_table[which(results_table$`From Modesto` != 0), ]
+```
+
+
+```{r}
+### Create Map ###
+
+
+# Create Basemap
+map("world", regions=c("usa"), fill=T, col="grey8", bg="grey25", ylim=c(21.0,50.0), xlim=c(-130.0,-65.0))
+
+# Overlay DC's
+points(results_table$lon, results_table$lat, pch=3, cex=0.2, col="white")
+
+# Add Connections
+for (i in (1:dim(camden.cities)[1])) { 
+    inter <- gcIntermediate(c(-75.118830, 39.945210), c(camden.cities$lons[i], camden.cities$lats[i]), n=5000)
+    inter2 <- gcIntermediate(c(-120.996880, 37.639095), c(modesto.cities$lons[i], modesto.cities$lats[i]), n=5000)
+    lines(inter, lwd=0.1, col="red")    
+    lines(inter2, lwd=0.1, col="cornflowerblue")
+}
+```
